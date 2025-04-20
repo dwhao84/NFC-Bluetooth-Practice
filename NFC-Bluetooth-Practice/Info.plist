@@ -23,5 +23,7 @@
 	<string>此應用需要使用藍牙來掃描和連接周圍的藍牙設備</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>此應用需要使用藍牙來掃描和連接周圍的藍牙設備</string>
+    <key>NFCReaderUsageDescription</key>
+    <string>NFC tag to read NDEF messages into the application</string>
 </dict>
 </plist>

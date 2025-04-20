@@ -1,14 +1,20 @@
+//
+//  BluetoothViewController.swift
+//  NFC-Bluetooth-Practice
+//
+//  Created by Dawei Hao on 2025/4/21.
+//
+
 import UIKit
 import CoreBluetooth
 
-// CBUID 結構體
+// MARK: - CBUID 結構體
 struct CBUUIDs {
     static let BLEService_UUID = CBUUID(string: "0000180F-0000-1000-8000-00805F9B34FB") // 電池服務示例
     static let BLECharacteristic_UUID = CBUUID(string: "00002A19-0000-1000-8000-00805F9B34FB") // 電池水平特性示例
 }
 
-class MainViewController: UIViewController {
-    
+class BluetoothViewController: UIViewController {
     let serviceBtn: UIButton = {
         let btn = UIButton(type: .system)
         var config = UIButton.Configuration.plain()
@@ -18,13 +24,25 @@ class MainViewController: UIViewController {
         return btn
     }()
     
+    // 狀態標籤
+    let statusLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = "準備就緒"
+        label.textAlignment = .center
+        label.font = UIFont.systemFont(ofSize: 14)
+        label.textColor = .systemGray
+        return label
+    }()
+    
     let tableView: UITableView = {
         let table = UITableView()
+        table.backgroundColor = .white
         table.translatesAutoresizingMaskIntoConstraints = false
         return table
     }()
     
-    // 新增: 電池電量顯示容器
+    // 電池電量容器
     let batteryContainer: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -34,7 +52,7 @@ class MainViewController: UIViewController {
         return view
     }()
     
-    // 新增: 電池電量標籤
+    // 電池電量標籤
     let batteryLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -43,7 +61,7 @@ class MainViewController: UIViewController {
         return label
     }()
     
-    // 新增: 電池電量進度條
+    // 電池電量進度條
     let batteryProgressView: UIProgressView = {
         let progressView = UIProgressView(progressViewStyle: .default)
         progressView.translatesAutoresizingMaskIntoConstraints = false
@@ -60,7 +78,8 @@ class MainViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .secondarySystemBackground
+        title = "藍牙掃描器"
+        view.backgroundColor = .white
         setupUI()
         setupConstraints()
         
@@ -69,11 +88,11 @@ class MainViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
-        updateBatteryLevel(Int(0))
     }
     
     func setupUI() {
         view.addSubview(serviceBtn)
+        view.addSubview(statusLabel)
         view.addSubview(batteryContainer)
         view.addSubview(tableView)
         
@@ -86,11 +105,18 @@ class MainViewController: UIViewController {
     
     func setupConstraints() {
         NSLayoutConstraint.activate([
+            // 藍牙掃描按鈕
             serviceBtn.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             serviceBtn.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            serviceBtn.heightAnchor.constraint(equalToConstant: 44),
+            
+            // 狀態標籤
+            statusLabel.topAnchor.constraint(equalTo: serviceBtn.bottomAnchor, constant: 8),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
             // 電池容器約束
-            batteryContainer.topAnchor.constraint(equalTo: serviceBtn.bottomAnchor, constant: 20),
+            batteryContainer.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 16),
             batteryContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             batteryContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             batteryContainer.heightAnchor.constraint(equalToConstant: 80),
@@ -107,10 +133,10 @@ class MainViewController: UIViewController {
             batteryProgressView.heightAnchor.constraint(equalToConstant: 10),
             
             // 調整表格視圖的位置，讓它在電池容器下方
-            tableView.topAnchor.constraint(equalTo: batteryContainer.bottomAnchor, constant: 20),
+            tableView.topAnchor.constraint(equalTo: batteryContainer.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
     }
 
@@ -128,6 +154,9 @@ class MainViewController: UIViewController {
         batteryProgressView.progress = 0
         batteryLabel.text = "電池電量: 0%"
         
+        // 更新狀態
+        statusLabel.text = "準備掃描藍牙設備..."
+        
         // 檢查藍牙狀態
         if centralManager.state == .poweredOn {
             // 使用服務UUID掃描，或掃描所有設備
@@ -139,17 +168,22 @@ class MainViewController: UIViewController {
                 self.centralManager.stopScan()
                 if self.peripherals.isEmpty {
                     self.serviceBtn.configuration?.title = "掃描藍牙設備"
+                    self.statusLabel.text = "沒有找到藍牙設備"
                     
                     // 如果沒有找到設備，顯示提示
                     let alert = UIAlertController(title: "沒有找到設備", message: "請確保藍牙設備已開啟並在範圍內", preferredStyle: .alert)
                     alert.addAction(UIAlertAction(title: "確定", style: .default))
                     self.present(alert, animated: true)
+                } else {
+                    self.statusLabel.text = "找到 \(self.peripherals.count) 個藍牙設備"
                 }
             }
             
             print("掃描開始...")
+            statusLabel.text = "正在掃描藍牙設備..."
             serviceBtn.configuration?.title = "正在掃描..."
         } else {
+            statusLabel.text = "藍牙未開啟"
             let alert = UIAlertController(title: "藍牙未開啟", message: "請開啟藍牙後再試", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "確定", style: .default))
             present(alert, animated: true)
@@ -163,7 +197,7 @@ class MainViewController: UIViewController {
         centralManager.connect(peripheral, options: nil)
     }
     
-    // 新增: 更新電池電量顯示
+    // 更新電池電量顯示
     func updateBatteryLevel(_ level: Int) {
         DispatchQueue.main.async {
             // 顯示電池容器
@@ -188,8 +222,8 @@ class MainViewController: UIViewController {
     }
 }
 
-// MARK: - UITableView Delegate & DataSource
-extension MainViewController: UITableViewDelegate, UITableViewDataSource {
+// MARK: - BluetoothViewController TableView Extensions
+extension BluetoothViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return peripherals.count
     }
@@ -201,8 +235,12 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
         var content = cell.defaultContentConfiguration()
         content.text = peripheral.name ?? "未知設備"
         content.secondaryText = peripheral.identifier.uuidString
-        cell.contentConfiguration = content
         
+        content.textProperties.color = .black
+        content.secondaryTextProperties.color = .darkGray
+        
+        cell.contentConfiguration = content
+        cell.backgroundColor = .white
         return cell
     }
     
@@ -213,26 +251,33 @@ extension MainViewController: UITableViewDelegate, UITableViewDataSource {
     }
 }
 
-// MARK: - CBCentral Manager Delegate
-extension MainViewController: CBCentralManagerDelegate {
+// MARK: - BluetoothViewController CBCentralManager Extensions
+extension BluetoothViewController: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .unknown:
             print("central.state is .unknown")
+            statusLabel.text = "藍牙狀態: 未知"
         case .resetting:
             print("central.state is .resetting")
+            statusLabel.text = "藍牙狀態: 重設中"
         case .unsupported:
             print("central.state is .unsupported")
+            statusLabel.text = "藍牙狀態: 不支持"
         case .unauthorized:
             print("central.state is .unauthorized")
+            statusLabel.text = "藍牙狀態: 未授權"
         case .poweredOff:
             print("central.state is .poweredOff")
+            statusLabel.text = "藍牙狀態: 已關閉"
         case .poweredOn:
             print("central.state is .poweredOn")
+            statusLabel.text = "藍牙狀態: 已開啟"
             // 藍牙已開啟，可以開始掃描
             serviceBtn.isEnabled = true
         @unknown default:
             print("central state is unknown")
+            statusLabel.text = "藍牙狀態: 未知狀態"
         }
     }
     
@@ -243,11 +288,15 @@ extension MainViewController: CBCentralManagerDelegate {
             peripherals.append(peripheral)
             peripheralNames.append(peripheral.name ?? "未知設備")
             tableView.reloadData()
+            statusLabel.text = "找到設備: \(peripheral.name ?? "未知設備")"
         }
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("已連接到 \(peripheral.name ?? "未知設備")")
+        
+        // 更新狀態
+        statusLabel.text = "已連接到: \(peripheral.name ?? "未知設備")"
         
         // 更新按鈕文字
         serviceBtn.configuration?.title = "已連接"
@@ -259,11 +308,13 @@ extension MainViewController: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         print("連接失敗: \(error?.localizedDescription ?? "未知錯誤")")
         serviceBtn.configuration?.title = "掃描藍牙設備"
+        statusLabel.text = "連接失敗: \(error?.localizedDescription ?? "未知錯誤")"
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         print("斷開連接: \(peripheral.name ?? "未知設備")")
         serviceBtn.configuration?.title = "掃描藍牙設備"
+        statusLabel.text = "已斷開連接: \(peripheral.name ?? "未知設備")"
         connectedPeripheral = nil
         
         // 隱藏電池顯示
@@ -271,11 +322,12 @@ extension MainViewController: CBCentralManagerDelegate {
     }
 }
 
-// MARK: - CBPeripheral Delegate
-extension MainViewController: CBPeripheralDelegate {
+// MARK: - BluetoothViewController CBPeripheral Extensions
+extension BluetoothViewController: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let error = error {
             print("服務探索失敗: \(error.localizedDescription)")
+            statusLabel.text = "服務探索失敗"
             return
         }
         
@@ -283,6 +335,7 @@ extension MainViewController: CBPeripheralDelegate {
         
         for service in services {
             print("發現服務: \(service)")
+            statusLabel.text = "發現服務: \(service.uuid)"
             // 探索每個服務中的特性
             peripheral.discoverCharacteristics(nil, for: service)
         }
@@ -327,14 +380,11 @@ extension MainViewController: CBPeripheralDelegate {
             if let byteData = data.first {
                 let batteryLevel = Int(byteData)
                 print("電池電量: \(batteryLevel)%")
+                statusLabel.text = "電池電量更新: \(batteryLevel)%"
                 
                 // 更新 UI 顯示電池電量
                 updateBatteryLevel(batteryLevel)
             }
         }
     }
-}
-
-#Preview {
-    UINavigationController(rootViewController: MainViewController())
 }
